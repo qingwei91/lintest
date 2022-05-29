@@ -11,7 +11,24 @@ object Utils {
     case o => factorial(o - 1, acc * o)
   }
 
-  def permutations[A: ClassTag](stuffs: Array[A]): Array[Array[A]] = {
+  /**
+   * This algorithm is not very efficient, and its not easy to parallelize
+   * We can only parallelize easily by partition, and that depends on no of elements to start with
+   * Due to its recursive nature, this method involves significant copying which can be inefficient,
+   * the biggest offender is when we call the recurse method, we need to clone the remaining elements before passing it
+   * to the method, and then perform a removal.
+   *
+   * Cloning is needed because we cannot share the data structure that needs to be mutated differently
+   * One potential speed up we can try is to introduce a concept of masking, then perhaps we can avoid mutating the original arrays
+   * But that will still allocate memory on each pass as the mask has to be different.
+   *
+   * TODO: can we make this non-recursive??
+   * TODO: consider implement Heap's algorithm instead (note its not parallelizable)
+   * @param stuffs
+   * @tparam A
+   * @return
+   */
+  def recursivePermutations[A: ClassTag](stuffs: Array[A]): Array[Array[A]] = {
     val n      = stuffs.length
     val f      = factorial(n)
     val matrix = Array.ofDim[A](f, n)
@@ -43,6 +60,9 @@ object Utils {
       }
       val noOfPartition = remaining.length
       val partitionSize = factorial(noOfPartition) / noOfPartition
+
+      // this is parallelizable, while we modify a shared data structure, we never modify the same element
+      // and assignments are atomic, so it is safe to parallelize this
       for (partitionNo <- 0 until noOfPartition) {
         val partitionStartX = partitionNo * partitionSize + topLeftX
         for (j <- 0 until partitionSize) {
